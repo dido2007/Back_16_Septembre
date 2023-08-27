@@ -26,6 +26,8 @@ const userSchema = new mongoose.Schema({
       latitude: Number,
       longitude: Number,
     },
+    userType: String,
+    interestedServices: [String],
     createdDate: {
       type: Date,
       default: Date.now,
@@ -99,3 +101,4 @@ const offreSchema = new mongoose.Schema({
 const Offre = mongoose.model('Offre', offreSchema);
   
 module.exports = { VerifCode, Feedback, User, Commentaire, Demande, Offre };
+

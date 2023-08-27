@@ -3,17 +3,18 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const multer = require('multer');
+const cookie = require('cookie');
 const { User } = require('../models/models');
-const { VerifCode } = require('../models/models'); 
-var orangeConfiguration = {
-  proxy: {
-      protocol: 'http',
-      host: 'proxy.rd.francetelecom.fr',
-      port: 8080
-  },
-  strictSSL: false
-};
-const OrangeSMS = require('node-orangesms')(process.env.CLIENTID, process.env.CLIENTSECRET, orangeConfiguration);
+// const { VerifCode } = require('../models/models'); 
+// var orangeConfiguration = {
+//   proxy: {
+//       protocol: 'http',
+//       host: 'proxy.rd.francetelecom.fr',
+//       port: 8080
+//   },
+//   strictSSL: false
+// };
+// const OrangeSMS = require('node-orangesms')(process.env.CLIENTID, process.env.CLIENTSECRET, orangeConfiguration);
 
 
 module.exports = (db) => {  
@@ -35,49 +36,49 @@ module.exports = (db) => {
  
   console.log("Valeur de depart du verification code : " + verification_code)
 
-  async function sendVerificationSMS(phone_number) {
-    const verification_code = Math.floor(100000 + Math.random() * 900000);
+  // async function sendVerificationSMS(phone_number) {
+  //   const verification_code = Math.floor(100000 + Math.random() * 900000);
   
-    console.log("Code de verification : " + verification_code);
+  //   console.log("Code de verification : " + verification_code);
   
-    try {  
-      const senderAddress = 'tel:+20XXXXXXXXXX';
-      const senderName = 'Djoby';
+  //   try {  
+  //     const senderAddress = 'tel:+20XXXXXXXXXX';
+  //     const senderName = 'Djoby';
   
-      const recipient = "+216" + phone_number;
-      const content = `Bienvenue sur DJOBY. Votre code de vérification est : ${verification_code}`;
+  //     const recipient = "+216" + phone_number;
+  //     const content = `Bienvenue sur DJOBY. Votre code de vérification est : ${verification_code}`;
   
-      const orangeSmsResponse = await OrangeSMS.sendSMS(recipient, content, senderAddress, senderName);
-      console.log("Orange SMS response:", orangeSmsResponse);
+  //     const orangeSmsResponse = await OrangeSMS.sendSMS(recipient, content, senderAddress, senderName);
+  //     console.log("Orange SMS response:", orangeSmsResponse);
   
-      return verification_code;
-    } catch (error) {
-      console.error('Une erreur s\'est produite lors de l\'envoi du SMS :', error);
-      return false;
-    }
-  }
+  //     return verification_code;
+  //   } catch (error) {
+  //     console.error('Une erreur s\'est produite lors de l\'envoi du SMS :', error);
+  //     return false;
+  //   }
+  // }
 
   
-  async function verificationSystem (phone_number) {
-    try {
-      const verificationSent = await sendVerificationSMS(phone_number);
-      console.log("Contenu de la variable verification sent : " + verificationSent + " \n ")
-      if (verificationSent) {
-        console.log(verification_code);
-        const verificationCodePost = new VerifCode({verification_code, phone_number})
-        await verificationCodePost.save();
-        console.log("verification_code ajoute avec success : ", verificationCodePost + " \n ");
-        return true
-      } else {
-        console.log("Echec lors de l'ajout du code de verification dans la base de donne." + " \n ")
-        return false 
-      }
-    }
-    catch(error) {
-      console.error(error);
-      return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
-    }
-  };
+  // async function verificationSystem (phone_number) {
+  //   try {
+  //     const verificationSent = await sendVerificationSMS(phone_number);
+  //     console.log("Contenu de la variable verification sent : " + verificationSent + " \n ")
+  //     if (verificationSent) {
+  //       console.log(verification_code);
+  //       const verificationCodePost = new VerifCode({verification_code, phone_number})
+  //       await verificationCodePost.save();
+  //       console.log("verification_code ajoute avec success : ", verificationCodePost + " \n ");
+  //       return true
+  //     } else {
+  //       console.log("Echec lors de l'ajout du code de verification dans la base de donne." + " \n ")
+  //       return false 
+  //     }
+  //   }
+  //   catch(error) {
+  //     console.error(error);
+  //     return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
+  //   }
+  // };
   
 
   router.post("/login", async (req, res) => {
@@ -92,6 +93,40 @@ module.exports = (db) => {
 
       console.log("Le resultat de la requete a la blase de donnee : " + user + " \n ")
 
+      console.log("Phone :" + user.phoneNumber)
+      if(user){
+        const userData = {
+          phoneNumber: user.phoneNumber,
+          fullName: user.fullName,
+          age: user.age,
+          avatar: user.avatar,
+          rating: user.rating,
+          bio: user.bio,
+          images: user.images,
+          position: user.position,
+          userType: user.userType,
+          interestedServices: user.interestedServices,
+        }
+
+        const userDataJSON = JSON.stringify(userData);
+
+        res.setHeader(
+          'Set-Cookie',
+          cookie.serialize('user', userDataJSON, {
+            httpOnly: true, // Le cookie ne peut être accédé que par le serveur
+            maxAge: 60 * 60 * 24 * 7, // Durée de validité en secondes (ici, 1 semaine)
+            sameSite: 'strict', // Contrôle la politique de partage du cookie
+            path: '/', // Chemin du site où le cookie est valide
+            secure: process.env.NODE_ENV === 'production', // Utiliser uniquement sur HTTPS en production
+          })
+        )
+        return res.json({
+          data: user,
+          success: true,
+          fallback: "Session initialisee avec succes!"
+        });
+      }
+
       if (!user) {
         console.log("Numero de telephone pas trouve a la base de donnee" + " \n ");
         return res.json({
@@ -99,12 +134,14 @@ module.exports = (db) => {
           fallback: "Ce numero n'existe pas, veuillez en essayer un autre ou veuillez creer un compte."
         });
       }
+      
+      
 
-      if(verificationSystem(phone_number)){
-        res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes" });
-      } else {
-        res.json({ success: false, fallback: "Une erreur est survenue lors de l envoi du code de verification" }); 
-      }      
+      // if(verificationSystem(phone_number)){
+      //   res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes" });
+      // } else {
+      //   res.json({ success: false, fallback: "Une erreur est survenue lors de l envoi du code de verification" }); 
+      // }      
     } catch (error) {
       console.error(error);
       return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
@@ -124,7 +161,8 @@ module.exports = (db) => {
       if(user){
         res.json({ success: false, fallback: "l'utilisateur existe deja" });
       } else {
-        res.json({ success: verificationSystem(phone_number), fallback: "Le code de verification a ete envoye avec succes." });
+        res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes." });
+        //res.json({ success: verificationSystem(phone_number), fallback: "Le code de verification a ete envoye avec succes." });
       }
 
     } catch (error) {
@@ -140,21 +178,53 @@ module.exports = (db) => {
       const data = JSON.parse(req.body.data); // Parsez la chaîne JSON dans un objet
 
       const user = new User({
-        phoneNumber: data.phone,
-        fullName: data.fullname,
+        phoneNumber: data.phoneNumber,
+        fullName: data.fullName,
         age: data.age,
         avatar: req.files['avatar'] ? req.files['avatar'][0].path : null,
-        userType: data.usertype,
-        interestedServices: data.interestedservices,
-        skills: data.skills,
-        projectImages: req.files['projectImages'] ? req.files['projectImages'].map(file => file.path) : [],
+        rating: data.rating,
+        userType: data.userType,
+        interestedServices: data.interestedServices,
+        bio: data.bio,
+        images: req.files['images'] ? req.files['images'].map(file => file.path) : [],
         position: {
           latitude: data.position[0],
           longitude: data.position[1],
         }
+
       });
 
       await user.save()
+
+      const userData = await db.collection('users').findOne({
+        phoneNumber: phone_number,
+      });
+
+      const userData2 = {
+        phoneNumber: userData.phoneNumber,
+        fullName: userData.fullName,
+        age: userData.age,
+        avatar: userData.avatar,
+        rating: userData.rating,
+        bio: userData.bio,
+        images: userData.images,
+        position: userData.position,
+        userType: userData.userType,
+        interestedServices: userData.interestedServices,
+      }
+      
+      const userDataJSON = JSON.stringify(userData2);
+
+      res.setHeader(
+        'Set-Cookie',
+        cookie.serialize('user', userDataJSON, {
+          httpOnly: true, // Le cookie ne peut être accédé que par le serveur
+          maxAge: 60 * 60 * 24 * 7, // Durée de validité en secondes (ici, 1 semaine)
+          sameSite: 'strict', // Contrôle la politique de partage du cookie
+          path: '/', // Chemin du site où le cookie est valide
+          secure: process.env.NODE_ENV === 'production', // Utiliser uniquement sur HTTPS en production
+        })
+      )
 
       res.json({success: true, fallback: "L'utilisateur a ete ajoute avec succes dans la base de donne"})
 
