@@ -1,9 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
 const multer = require('multer');
-const cookie = require('cookie');
 const { User } = require('../models/models');
 // const { VerifCode } = require('../models/models'); 
 // var orangeConfiguration = {
@@ -95,31 +93,6 @@ module.exports = (db) => {
 
       console.log("Phone :" + user.phoneNumber)
       if(user){
-        const userData = {
-          phoneNumber: user.phoneNumber,
-          fullName: user.fullName,
-          age: user.age,
-          avatar: user.avatar,
-          rating: user.rating,
-          bio: user.bio,
-          images: user.images,
-          position: user.position,
-          userType: user.userType,
-          interestedServices: user.interestedServices,
-        }
-
-        const userDataJSON = JSON.stringify(userData);
-
-        res.setHeader(
-          'Set-Cookie',
-          cookie.serialize('user', userDataJSON, {
-            httpOnly: true, // Le cookie ne peut être accédé que par le serveur
-            maxAge: 60 * 60 * 24 * 7, // Durée de validité en secondes (ici, 1 semaine)
-            sameSite: 'strict', // Contrôle la politique de partage du cookie
-            path: '/', // Chemin du site où le cookie est valide
-            secure: process.env.NODE_ENV === 'production', // Utiliser uniquement sur HTTPS en production
-          })
-        )
         return res.json({
           data: user,
           success: true,
@@ -172,10 +145,12 @@ module.exports = (db) => {
 
   });
 
-  router.post("/signup", upload.fields([{ name: 'avatar', maxCount  : 1 }, { name: 'projectImages', maxCount: 8 }]), async (req, res) => {
+  router.post("/signup", upload.fields([{ name: 'avatar', maxCount  : 1 }, { name: 'images', maxCount: 3 }]), async (req, res) => {
     try {
 
-      const data = JSON.parse(req.body.data); // Parsez la chaîne JSON dans un objet
+      const data = JSON.parse(req.body.data); 
+
+      console.log("Uploaded Images:", req.files['images']);
 
       const user = new User({
         phoneNumber: data.phoneNumber,
@@ -196,37 +171,11 @@ module.exports = (db) => {
 
       await user.save()
 
-      const userData = await db.collection('users').findOne({
-        phoneNumber: phone_number,
-      });
-
-      const userData2 = {
-        phoneNumber: userData.phoneNumber,
-        fullName: userData.fullName,
-        age: userData.age,
-        avatar: userData.avatar,
-        rating: userData.rating,
-        bio: userData.bio,
-        images: userData.images,
-        position: userData.position,
-        userType: userData.userType,
-        interestedServices: userData.interestedServices,
-      }
-      
-      const userDataJSON = JSON.stringify(userData2);
-
-      res.setHeader(
-        'Set-Cookie',
-        cookie.serialize('user', userDataJSON, {
-          httpOnly: true, // Le cookie ne peut être accédé que par le serveur
-          maxAge: 60 * 60 * 24 * 7, // Durée de validité en secondes (ici, 1 semaine)
-          sameSite: 'strict', // Contrôle la politique de partage du cookie
-          path: '/', // Chemin du site où le cookie est valide
-          secure: process.env.NODE_ENV === 'production', // Utiliser uniquement sur HTTPS en production
-        })
-      )
-
-      res.json({success: true, fallback: "L'utilisateur a ete ajoute avec succes dans la base de donne"})
+      res.json({
+        data: user,
+        success: true, 
+        fallback: "L'utilisateur a ete ajoute avec succes dans la base de donne"
+      })
 
     } catch(error) {
       console.log("Echec lors de l'ajout du user dans la base de donne." + error + " \n ")
@@ -284,49 +233,6 @@ module.exports = (db) => {
     }
     catch (error) {
       console.error('Une erreur s\'est produite lors de la verification du code de verification :', error);
-      throw error;
-    }
-  });
-
-  router.post("/session", async (req, res) => {
-    try{
-      const phone = req.body.phone_number;
-      console.log("Req body : " + req.body);
-      console.log("Phone number : " + phone);
-
-      const user = await db.collection('users').findOne({
-        phoneNumber: phone,
-      });
-
-      req.session.user = {
-        phoneNumber: user.phoneNumber,
-        fullName: user.fullName,
-        age: user.age,
-        avatar: user.avatar,
-        userType: user.userType,
-        interestedServices: user.interestedServices,
-        skills: user.skills,
-        projectImages: user.projectImages,
-        position: user.position      
-      }
-
-      console.log("User phone number " + user.phoneNumber) 
-      console.log("User position " + user.position)
-      console.log("User age " + user.age)
-      console.log("Session data set, attempting to save session");
-
-      req.session.save(err => {
-        if(err){
-          console.error("Error saving session:", err);
-          res.status(500).send({ success: false, fallback: "Une erreur est survenue lors de la sauvegarde de la session" });
-        } else {
-          console.log("Session saved successfully");
-          res.send({success : true, data: user, fallback: "La session a bien ete cree."} );
-        }
-        });
-    }
-    catch (error) {
-      console.error('Une erreur s\'est produite lors de la creation de la session :', error);
       throw error;
     }
   });

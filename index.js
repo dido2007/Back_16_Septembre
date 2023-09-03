@@ -47,8 +47,12 @@ db.once('open', () => console.log('Connected to the Database'));
 // Import routes and configuration
 const authRoutes = require('./routes/auth')(db);
 const layoutRoutes = require('./routes/layout')(db);
+const marketplaceRoutes = require('./routes/marketplace')(db);
+const profileRoutes = require('./routes/profile')(db);
 
 app.use('/api/auth', authRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/layout', layoutRoutes);
+app.use('/api/profile', profileRoutes);
 
 app.listen(process.env.PORT, () => console.log(`Server listening on port ${process.env.PORT}`));
