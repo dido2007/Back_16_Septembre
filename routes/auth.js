@@ -3,16 +3,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { User } = require('../models/models');
-// const { VerifCode } = require('../models/models'); 
-// var orangeConfiguration = {
-//   proxy: {
-//       protocol: 'http',
-//       host: 'proxy.rd.francetelecom.fr',
-//       port: 8080
-//   },
-//   strictSSL: false
-// };
-// const OrangeSMS = require('node-orangesms')(process.env.CLIENTID, process.env.CLIENTSECRET, orangeConfiguration);
+const axios = require('axios');
+const { VerifCode } = require('../models/models'); 
 
 
 module.exports = (db) => {  
@@ -34,49 +26,79 @@ module.exports = (db) => {
  
   console.log("Valeur de depart du verification code : " + verification_code)
 
-  // async function sendVerificationSMS(phone_number) {
-  //   const verification_code = Math.floor(100000 + Math.random() * 900000);
+  const getToken = async () => {
+    const result = await axios
+    .post("https://api.orange.com/oauth/v3/token", {
+        grant_type: "client_credentials",
+      }, {
+        headers: {
+          Authorization: process.env.TOKEN_AUTH,
+          Accept: 'application/json',
+          "content-type": "application/x-www-form-urlencoded",
+        }
+      }
+    ).then((res) => res.data);
+    return result.access_token;
+  }
+
+  async function sendVerificationSMS(phone_number) {
+    const verification_code = Math.floor(100000 + Math.random() * 900000);
   
-  //   console.log("Code de verification : " + verification_code);
+    console.log("Code de verification : " + verification_code);
+
+    const token = await getToken();
+    const devPhoneNumber = process.env.NUMBER_DEV
   
-  //   try {  
-  //     const senderAddress = 'tel:+20XXXXXXXXXX';
-  //     const senderName = 'Djoby';
-  
-  //     const recipient = "+216" + phone_number;
-  //     const content = `Bienvenue sur DJOBY. Votre code de vérification est : ${verification_code}`;
-  
-  //     const orangeSmsResponse = await OrangeSMS.sendSMS(recipient, content, senderAddress, senderName);
-  //     console.log("Orange SMS response:", orangeSmsResponse);
-  
-  //     return verification_code;
-  //   } catch (error) {
-  //     console.error('Une erreur s\'est produite lors de l\'envoi du SMS :', error);
-  //     return false;
-  //   }
-  // }
+    try {  
+      axios.post(`https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B${devPhoneNumber}/requests`,
+      {
+          "outboundSMSMessageRequest": {
+              "address": [
+                  `tel:+216${phone_number}`
+              ],
+              "senderAddress": `tel:+${devPhoneNumber}`,
+              "outboundSMSTextMessage": {
+                  "message": `Bienvenue sur DJOBY. Votre code de vérification est : ${verification_code}`
+              },
+          }
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        }
+      }
+      )
+      return verification_code;
+    } catch (error) {
+      console.error('Une erreur s\'est produite lors de l\'envoi du SMS :', error);
+      return false;
+    }
+  }
 
   
-  // async function verificationSystem (phone_number) {
-  //   try {
-  //     const verificationSent = await sendVerificationSMS(phone_number);
-  //     console.log("Contenu de la variable verification sent : " + verificationSent + " \n ")
-  //     if (verificationSent) {
-  //       console.log(verification_code);
-  //       const verificationCodePost = new VerifCode({verification_code, phone_number})
-  //       await verificationCodePost.save();
-  //       console.log("verification_code ajoute avec success : ", verificationCodePost + " \n ");
-  //       return true
-  //     } else {
-  //       console.log("Echec lors de l'ajout du code de verification dans la base de donne." + " \n ")
-  //       return false 
-  //     }
-  //   }
-  //   catch(error) {
-  //     console.error(error);
-  //     return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
-  //   }
-  // };
+  async function verificationSystem(phone_number) {
+    try {
+      const verificationSent = await sendVerificationSMS(phone_number);
+      console.log("Contenu de la variable verification sent : " + verificationSent + " \n ")
+      if (verificationSent) {
+        console.log(verificationSent);
+        const verificationCodePost = new VerifCode({
+          phoneNumber: phone_number,
+          verificationCode: parseInt(verificationSent), 
+        })
+        await verificationCodePost.save();
+        console.log("verification_code ajoute avec success : ", verificationCodePost + " \n ");
+        return true
+      } else {
+        console.log("Echec lors de l'ajout du code de verification dans la base de donne." + " \n ")
+        return false 
+      }
+    }
+    catch(error) {
+      console.error(error);
+      return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
+    }
+  };
   
 
   router.post("/login", async (req, res) => {
@@ -92,13 +114,6 @@ module.exports = (db) => {
       console.log("Le resultat de la requete a la blase de donnee : " + user + " \n ")
 
       console.log("Phone :" + user.phoneNumber)
-      if(user){
-        return res.json({
-          data: user,
-          success: true,
-          fallback: "Session initialisee avec succes!"
-        });
-      }
 
       if (!user) {
         console.log("Numero de telephone pas trouve a la base de donnee" + " \n ");
@@ -110,11 +125,11 @@ module.exports = (db) => {
       
       
 
-      // if(verificationSystem(phone_number)){
-      //   res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes" });
-      // } else {
-      //   res.json({ success: false, fallback: "Une erreur est survenue lors de l envoi du code de verification" }); 
-      // }      
+      if(verificationSystem(phone_number)){
+        res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes" });
+      } else {
+        res.json({ success: false, fallback: "Une erreur est survenue lors de l envoi du code de verification" }); 
+      }      
     } catch (error) {
       console.error(error);
       return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
@@ -134,8 +149,8 @@ module.exports = (db) => {
       if(user){
         res.json({ success: false, fallback: "l'utilisateur existe deja" });
       } else {
-        res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes." });
-        //res.json({ success: verificationSystem(phone_number), fallback: "Le code de verification a ete envoye avec succes." });
+        // res.json({ success: true, fallback: "Le code de verification a ete envoye avec succes." });
+        res.json({ success: verificationSystem(phone_number), fallback: "Le code de verification a ete envoye avec succes." });
       }
 
     } catch (error) {
@@ -191,9 +206,7 @@ module.exports = (db) => {
 
       console.log("Request Body verification_code  : " + req.body.verification_code + "\n");
 
-      const code = req.body.verification_code;
-
-      const phone = req.body.phone_number;
+      const { code, phone } = req.body
 
 
       console.log("Type Numero de tel obtenu du front : " + typeof phone + "\n");
@@ -204,19 +217,31 @@ module.exports = (db) => {
       
       console.log("Code de verification obtenue du front : " + code + "\n");
 
-      const verifCode = await db.collection('verifcodes').findOne({
+      const verifCode = await db.collection('verifcodes').find({
         verification_code: parseInt(code),
         phone_number: phone,
       });
 
       console.log("Cherche des donnes du front dans la database : " + verifCode + '\n' + '-------------------------------' + '\n');
 
+      const user = await db.collection('users').findOne({
+        phoneNumber: phone,
+      });
+
+      
       if (!verifCode) {
         return res.json({
           success: false,
           fallback: "The verification code is wrong"
         });
       } else{
+        if(user){
+          return res.json({
+            data: user,
+            success: true,
+            fallback: "Session initialisee avec succes!"
+          });
+        }
         res.json({ success: true, fallback: "Le code de verification est juste" });
       }
 

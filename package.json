@@ -4,11 +4,13 @@
   "description": "Backend DJOBY",
   "main": "index.js",
   "scripts": {
+    "start": "node --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hedi Fourati^2",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.5.0",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
     "connect-mongo": "^5.0.0",
