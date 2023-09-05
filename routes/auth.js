@@ -217,9 +217,13 @@ module.exports = (db) => {
       
       console.log("Code de verification obtenue du front : " + code + "\n");
 
-      const verifCode = await db.collection('verifcodes').find({
-        verification_code: parseInt(code),
-        phone_number: phone,
+      console.log("Type Code de verification obtenue du front parseInt : " + typeof parseInt(code) + "\n");
+
+      const new_code = parseInt(code)
+
+      const verifCode = await VerifCode.findOne({
+        phoneNumber: phone,
+        verificationCode: new_code,
       });
 
       console.log("Cherche des donnes du front dans la database : " + verifCode + '\n' + '-------------------------------' + '\n');
@@ -246,8 +250,8 @@ module.exports = (db) => {
       }
 
       const suppressionDuCode = await db.collection('verifcodes').deleteOne({
-        verification_code: parseInt(code),
-        phone_number: phone,
+        phoneNumber: phone,
+        verificationCode: new_code,
       });
 
       if (suppressionDuCode) {

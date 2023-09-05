@@ -9,7 +9,7 @@ const VerifCode = mongoose.model('VerifCode', verifCodeSchema);
 
 const feedbackSchema = new mongoose.Schema({
     title: String,
-    description: Number,
+    description: String,
 });
     
 const Feedback = mongoose.model('Feedback', feedbackSchema);
