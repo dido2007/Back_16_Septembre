@@ -49,10 +49,13 @@ const authRoutes = require('./routes/auth')(db);
 const layoutRoutes = require('./routes/layout')(db);
 const marketplaceRoutes = require('./routes/marketplace')(db);
 const profileRoutes = require('./routes/profile')(db);
+const chatRoutes = require('./routes/chat');
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/layout', layoutRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/chat', chatRoutes)
 
 app.listen(process.env.PORT, () => console.log(`Server listening on port ${process.env.PORT}`));

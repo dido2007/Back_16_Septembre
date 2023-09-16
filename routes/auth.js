@@ -96,7 +96,7 @@ module.exports = (db) => {
     }
     catch(error) {
       console.error(error);
-      return res.json({ success: false, fallback: "Une erreur est survenue : " + error });
+      return { success: false, fallback: "Une erreur est survenue : " + error }
     }
   };
   

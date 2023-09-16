@@ -99,6 +99,21 @@ const offreSchema = new mongoose.Schema({
 });
   
 const Offre = mongoose.model('Offre', offreSchema);
+
+const messageSchema = new mongoose.Schema({
+  content: String,
+  from: String,
+  to: String,
+  timestamp: { type: Date, default: Date.now },
+});
+
+const conversationSchema = new mongoose.Schema({
+  participants: [String], 
+  messages: [messageSchema],
+});
+
+
+const Conversation = mongoose.model('Conversation', conversationSchema);
   
-module.exports = { VerifCode, Feedback, User, Commentaire, Demande, Offre };
+module.exports = { VerifCode, Feedback, User, Commentaire, Demande, Offre, Conversation };
 

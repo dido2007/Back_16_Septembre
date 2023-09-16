@@ -105,34 +105,36 @@ module.exports = (db) => {
         }
       });
 
-      router.post('/annonce', async (req, res) => {
-        const { id, annonceType } = req.body;
-
+      router.get('/annonce/:type/:id', async (req, res) => {
+        const id = req.params.id;
+        const annonceType = req.params.type;
+    
         console.log("id " + id);
-        console.log("annonceType" + annonceType)
+        console.log("annonceType " + annonceType);
+    
         try {
-          if(annonceType == 'Offre'){
-            const annonce = await Offre.findById(id).populate('user', 'fullName avatar position');;
-
-            if (!annonce) {
-              return res.status(404).json({ error: 'Annonce not found' });
+            if (annonceType === 'offre') {
+                const annonce = await Offre.findById(id).populate('user', 'fullName avatar position');
+                
+                if (!annonce) {
+                    return res.status(404).json({ error: 'Annonce not found' });
+                }
+                res.json(annonce);
             }
-            res.json(annonce);
-          }
-          if(annonceType == 'Demande'){
-            const annonce = await Demande.findById(id).populate('user', 'fullName avatar position');;
-
-            if(!annonce){
-              return res.status(404).json({ error: 'Annonce not found'});
+            if (annonceType === 'demande') {
+                const annonce = await Demande.findById(id).populate('user', 'fullName avatar position');
+                
+                if (!annonce) {
+                    return res.status(404).json({ error: 'Annonce not found' });
+                }
+                res.json(annonce);
             }
-            res.json(annonce);
-          }
-
         } catch (error) {
-          console.error(error);
-          res.status(500).json({ error: 'Internal Server Error' });
+            console.error(error);
+            res.status(500).json({ error: 'Internal Server Error' });
         }
-      })
+    });
+    
 
     return router;
   };
